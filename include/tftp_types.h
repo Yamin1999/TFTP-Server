@@ -61,6 +61,8 @@
 
 #define MAX_READ_SIZE 60000
 
+#define PROGRESS_UPDATE_INTERVAL (1024 * 1024) // 1 MB
+
 #define PORT 69
 
 #define READ_SESSION_CLOSE(fp, socket_fd_s, index)            \
@@ -90,7 +92,7 @@
         return 0;                                             \
     } while (0)
 
-#define println() printf("-------------------------------------------------------------------------------------------------------------\n")
+#define println() printf("------------------------------------------------------------------------------------------------------------------------\n")
 
 
 #pragma pack(push, 1) // Disable structure member alignment

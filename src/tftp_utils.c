@@ -71,9 +71,9 @@ void print_progress_write(size_t count, size_t max, int index)
 }
 
 void init_session_table() {
-    printf("\n=============================================================================================================");
-    printf("\n| No |    Filename                                     |   Client IP       | Op     | Bytes      | Duration |");
-    printf("\n=============================================================================================================");
+    printf("\n========================================================================================================================");
+    printf("\n| No |    Filename                                     |   Client IP       | Op     | Bytes      | Duration |  Time    |");
+    printf("\n========================================================================================================================");
     printf("\n");
 }
 
@@ -83,7 +83,7 @@ void format_time(char *buffer, size_t size) {
     
     time(&current_time);
     time_info = localtime(&current_time);
-    strftime(buffer, size, "%I:%M:%S %p", time_info);
+    strftime(buffer, size, "%I:%M %p", time_info);
 }
 
 void format_duration(char *buffer, size_t buffer_size, double duration_seconds) {
@@ -103,37 +103,57 @@ double calculate_transfer_duration(session_t *session) {
 }
 
 void log_session_progress(uint32_t index_count, session_t *session, uint32_t bytes) {
-    // Use \r to return to beginning of line and overwrite
-    printf("\r| %-3d|    %-44s |   %-15s | %-6s | %-10d | %-8s |",
-           index_count,
-           session->filename,
-           inet_ntoa(session->client_adderess.sin_addr),
-           session->operation == READ ? "READ" : "WRITE",
-           bytes,
-           "---");
-    fflush(stdout);
+    // Only update display every 1MB to reduce overhead
+    static uint32_t last_display_bytes = 0;
+    
+    if (bytes - last_display_bytes >= PROGRESS_UPDATE_INTERVAL || bytes == 0) {
+        char time_str[12];
+        format_time(time_str, sizeof(time_str));
+        
+        // Use \r to return to beginning of line and overwrite
+        printf("\r| %-3d|    %-44s |   %-15s | %-6s | %-10d | %-8s | %-6s |",
+               index_count,
+               session->filename,
+               inet_ntoa(session->client_adderess.sin_addr),
+               session->operation == read ? "READ" : "WRITE",
+               bytes,
+               "---",
+               time_str);
+        fflush(stdout);
+        
+        last_display_bytes = bytes;
+    }
     // Don't print newline - keep updating the same line
 }
 
 void log_session_complete(uint32_t index_count, session_t *session, uint32_t total_bytes) {
     char duration_str[20];
+    char time_str[10];
     
     // Calculate and format duration
     double duration = calculate_transfer_duration(session);
     format_duration(duration_str, sizeof(duration_str), duration);
+    
+    // Format completion time
+    format_time(time_str, sizeof(time_str));
 
-    // Final update with duration, then add newline to move to next line
-    printf("\r| %-3d|    %-44s |   %-15s | %-6s | %-10d | %-8s |\n",
+    // Final update with duration and time, then add newline to move to next line
+    printf("\r| %-3d|    %-44s |   %-15s | %-6s | %-10d | %-8s | %-4s |\n",
            index_count,
            session->filename,
            inet_ntoa(session->client_adderess.sin_addr),
            session->operation == READ ? "READ" : "WRITE",
            total_bytes,
-           duration_str);
+           duration_str,
+           time_str);
     
     // Add separator line after each completed transfer
-    printf("-------------------------------------------------------------------------------------------------------------\n");
+    printf("------------------------------------------------------------------------------------------------------------------------\n");
     fflush(stdout);
+    
+    // Reset static variable for next session
+    static uint32_t last_display_bytes = 0;
+    last_display_bytes = 0;
 }
 
 // Helper function to start timing a session
